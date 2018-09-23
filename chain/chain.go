@@ -3,7 +3,7 @@ package chain
 type Chain interface {
 	AddBlock(data []byte) (Block, error)
 	GetSize() uint64
-	GetBlockAtIndex(index uint64) Block
+	GetBlockAtIndex(index uint64) (Block, error)
 	IsValid() bool
 }
 
