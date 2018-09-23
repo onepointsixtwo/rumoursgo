@@ -11,6 +11,6 @@ type Block interface {
 	GetHash() []byte
 	GetPreviousHash() []byte
 	GetData() []byte
-	GetBlockNumber() uint64
+	GetBlockNumber() int64
 	GetCreationTimestamp() int64
 }
