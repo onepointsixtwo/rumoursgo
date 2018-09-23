@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/onepointsixtwo/rumoursgo/chain"
+	"io"
 	"os"
 	"time"
 )
@@ -20,14 +21,13 @@ import (
 	block number (8 bytes)
 	timestamp (8 bytes)
 
-	TOTAL: 4096 bytes (purposely made data 40 bytes short of 4096 so the whole thing fits into a block that is a round number (in binary))
+	TOTAL: 4096 bytes (purposely made data 88 bytes short of 4096 so the whole thing fits into a block that is a round number (in binary))
 	Should hopefully mean that the blocks line up with either the file read block size or some multiple of it
-	Non-data sections: 88 bytes
-
 */
 
 const (
 	FixedBlockSize = 4096
+	MaxDataSize    = 4008
 )
 
 // Types
@@ -50,9 +50,26 @@ func NewFixedChain(file *os.File) *FixedChain {
 	return &FixedChain{file}
 }
 
-//TODO: get public interface working.
 func (chain *FixedChain) AddBlock(data []byte) (chain.Block, error) {
-	return nil, nil
+	dataLen := len(data)
+	if dataLen > MaxDataSize {
+		return nil, fmt.Errorf("Max data size should be %v but was %v", MaxDataSize, dataLen)
+	}
+
+	latestBlock, err := chain.getLatestBlock()
+	if err != nil {
+		return nil, err
+	}
+
+	var previousBlockNumber int64 = -1
+	previousHash := make([]byte, 0)
+	if latestBlock != nil {
+		previousBlockNumber = latestBlock.blockNumber
+		previousHash = latestBlock.hash
+	}
+
+	newBlock := NewFixedSizeBlock(data, previousBlockNumber, previousHash)
+	return chain.appendBlock(newBlock)
 }
 
 func (chain *FixedChain) GetSize() uint64 {
@@ -64,13 +81,51 @@ func (chain *FixedChain) GetSize() uint64 {
 }
 
 func (chain *FixedChain) GetBlockAtIndex(index uint64) (chain.Block, error) {
-	return nil, nil
+	return chain.getBlockAtIndex(index)
 }
 
 func (chain *FixedChain) IsValid() bool {
 	// Function should be moved out to a general function which checks if any Chain (interface) is valid.
 	// Doesn't need to know internals at all.
 	return true
+}
+
+func (chain *FixedChain) getLatestBlock() (*FixedChainBlock, error) {
+	size := chain.GetSize()
+	if size == 0 {
+		return nil, nil
+	}
+	return chain.getBlockAtIndex(size - 1)
+}
+
+func (chain *FixedChain) appendBlock(block *FixedChainBlock) (chain.Block, error) {
+	info, statErr := chain.file.Stat()
+	if statErr != nil {
+		return nil, fmt.Errorf("Error attempting to get stats for blockchain file %v", statErr)
+	}
+
+	fileLength := info.Size()
+	_, err := chain.file.WriteAt(block.getDiskWriteData(), fileLength)
+	if err != nil {
+		return nil, fmt.Errorf("Error writing block to disk %v", err)
+	}
+
+	return block, nil
+}
+
+func (chain *FixedChain) getBlockAtIndex(index uint64) (*FixedChainBlock, error) {
+	byteOffset := int64(index * FixedBlockSize)
+	bytes := make([]byte, FixedBlockSize)
+
+	bytesRead, err := chain.file.ReadAt(bytes, byteOffset)
+	if err != nil {
+		return nil, fmt.Errorf("Error attempting to read block from file %v", err)
+	}
+	if bytesRead != FixedBlockSize {
+		return nil, fmt.Errorf("Incorrect number of bytes read attempting to read block from file - got %v", bytesRead)
+	}
+
+	return newFixedSizeBlockFromData(bytes)
 }
 
 // Block Methods
@@ -93,7 +148,7 @@ func newFixedSizeBlockFromData(diskData []byte) (*FixedChainBlock, error) {
 	if err != nil {
 		return nil, err
 	}
-	if dataLength > 4008 {
+	if dataLength > MaxDataSize {
 		return nil, fmt.Errorf("Data length too long - should be a max of 4008 but is %v", dataLength)
 	}
 	data := diskData[72:(72 + dataLength)]
@@ -102,7 +157,7 @@ func newFixedSizeBlockFromData(diskData []byte) (*FixedChainBlock, error) {
 		return nil, err2
 	}
 	timestamp, err3 := bytesToLongInteger(diskData[4088:4096])
-	if err3 != nil {
+	if err3 != nil && err3 != io.EOF {
 		return nil, err3
 	}
 
@@ -115,7 +170,7 @@ func (block *FixedChainBlock) GetHash() []byte {
 	return block.hash
 }
 
-func (block *FixedChainBlock) GetPrevious() []byte {
+func (block *FixedChainBlock) GetPreviousHash() []byte {
 	return block.previousHash
 }
 
