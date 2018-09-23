@@ -1,4 +1,4 @@
-package chain
+package simplechain
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 // Tests
 
 func TestAddingDataBlocks(t *testing.T) {
-	chain := NewEmptyChain()
+	chain := NewSimpleChain()
 
 	firstData := stringToBytes("ONE")
 	chain.AddDataBlock(firstData)
@@ -42,7 +42,7 @@ func TestAddingDataBlocks(t *testing.T) {
 }
 
 func TestChainLength(t *testing.T) {
-	chain := NewEmptyChain()
+	chain := NewSimpleChain()
 
 	for i := 0; i < 30; i++ {
 		chain.AddDataBlock(stringToBytes("I"))
@@ -54,7 +54,7 @@ func TestChainLength(t *testing.T) {
 }
 
 func TestNonCorruptedChainIsValid(t *testing.T) {
-	chain := NewEmptyChain()
+	chain := NewSimpleChain()
 	chain.AddDataBlock(stringToBytes("Testing"))
 	chain.AddDataBlock(stringToBytes("That"))
 	chain.AddDataBlock(stringToBytes("My"))
@@ -73,7 +73,7 @@ func TestChainIsNotValidWhenCorrupted(t *testing.T) {
 	// writing the chain to a file via a Reader / Writer and that's when we need to test the validity of our chain
 	// -- when it could have been tampered with by another party.
 
-	chain := NewEmptyChain()
+	chain := NewSimpleChain()
 	chain.AddDataBlock(stringToBytes("Testing"))
 	chain.AddDataBlock(stringToBytes("That"))
 	chain.AddDataBlock(stringToBytes("This"))
@@ -81,7 +81,7 @@ func TestChainIsNotValidWhenCorrupted(t *testing.T) {
 	chain.AddDataBlock(stringToBytes("Is"))
 	chain.AddDataBlock(stringToBytes("Invalid"))
 
-	block := NewBlock(stringToBytes("Some data we're trying to insert"), stringToBytes("Some invalid hash"))
+	block := NewSimpleBlock(stringToBytes("Some data we're trying to insert"), stringToBytes("Some invalid hash"))
 	chain.addBlock(block)
 
 	chain.AddDataBlock(stringToBytes("After"))
