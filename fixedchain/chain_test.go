@@ -90,7 +90,25 @@ func TestAddToAndReadFromChain(t *testing.T) {
 }
 
 func TestAddMultipleBlocksToChainAndReadFromPosition(t *testing.T) {
+	runTestAgainstFile(t, func(file *os.File) {
+		chain := NewFixedChain(file)
 
+		chain.AddBlock([]byte("Some data"))
+		chain.AddBlock([]byte("Some more data"))
+		chain.AddBlock([]byte("Third block"))
+		chain.AddBlock([]byte("Fourth block"))
+		chain.AddBlock([]byte("Fifth block"))
+
+		fourthBlockRead, _ := chain.GetBlockAtIndex(3)
+		if !bytes.Equal(fourthBlockRead.GetData(), []byte("Fourth block")) {
+			t.Errorf("Expected the data in the fourth block stored to be 'Fourth block' but was not")
+		}
+
+		fifthBlockRead, _ := chain.GetBlockAtIndex(4)
+		if !bytes.Equal(fifthBlockRead.GetData(), []byte("Fifth block")) {
+			t.Errorf("Expected the data in the fifth block stored to be 'Fifth block' but was not")
+		}
+	})
 }
 
 // Helpers
