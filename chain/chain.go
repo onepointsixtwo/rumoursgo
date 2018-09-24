@@ -13,4 +13,5 @@ type Block interface {
 	GetData() []byte
 	GetBlockNumber() int64
 	GetCreationTimestamp() int64
+	VerifyBlockHash() bool
 }
